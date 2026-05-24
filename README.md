@@ -150,6 +150,7 @@ Set env vars in Render service -> `Environment`:
 - `OPENAI_API_KEY`
 - `SLACK_BOT_TOKEN`
 - `SLACK_SIGNING_SECRET`
+- `YTDLP_COOKIES_B64` (recommended for YouTube bot-check issues)
 - `TRANSCRIBE_MODEL` (optional, default `gpt-4o-mini-transcribe`)
 - `CHUNK_SECONDS` (optional, default `600`)
 - `TRANSCRIPT_DIR` (optional, default `transcripts`)
@@ -162,6 +163,27 @@ Use the repo's `Dockerfile` (already included).
 
 Then create a new Render Web Service from this repo; Render auto-detects Dockerfile.
 Set the same env vars listed above.
+
+### YouTube bot-check fix (cookies)
+
+If you see this error in logs:
+- `Sign in to confirm you're not a bot`
+
+Add authenticated YouTube cookies for `yt-dlp`:
+
+1. Export YouTube cookies from your browser in Netscape cookie format (file like `youtube_cookies.txt`).
+2. Convert file to base64 on your machine:
+
+```bash
+base64 -w 0 youtube_cookies.txt
+```
+
+3. In Render -> Environment, set:
+- `YTDLP_COOKIES_B64` = `<base64 output>`
+
+4. Redeploy service.
+
+The app decodes this env var at runtime and passes it to `yt-dlp` as `cookiefile`.
 
 ---
 

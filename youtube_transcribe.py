@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import base64
 import os
 import re
 import subprocess
@@ -27,24 +28,40 @@ def download_audio(youtube_url: str, output_dir: Path) -> tuple[Path, str]:
         "noplaylist": True,
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(youtube_url, download=True)
-        downloaded = Path(ydl.prepare_filename(info))
-        title = info.get("title") or "transcript"
+    cookies_b64 = os.getenv("YTDLP_COOKIES_B64", "").strip()
+    cookie_file: Path | None = None
+    if cookies_b64:
+        try:
+            cookie_data = base64.b64decode(cookies_b64, validate=True)
+        except Exception as exc:
+            raise ValueError(f"Invalid YTDLP_COOKIES_B64 value: {exc}") from exc
 
-        requested = info.get("requested_downloads") or []
-        if requested:
-            actual = requested[0].get("filepath")
-            if actual:
-                downloaded = Path(actual)
+        cookie_file = output_dir / "yt_cookies.txt"
+        cookie_file.write_bytes(cookie_data)
+        ydl_opts["cookiefile"] = str(cookie_file)
 
-        if not downloaded.exists():
-            matches = sorted(output_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
-            if not matches:
-                raise FileNotFoundError("yt-dlp finished but no audio file was found.")
-            downloaded = matches[0]
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(youtube_url, download=True)
+            downloaded = Path(ydl.prepare_filename(info))
+            title = info.get("title") or "transcript"
 
-        return downloaded, title
+            requested = info.get("requested_downloads") or []
+            if requested:
+                actual = requested[0].get("filepath")
+                if actual:
+                    downloaded = Path(actual)
+
+            if not downloaded.exists():
+                matches = sorted(output_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if not matches:
+                    raise FileNotFoundError("yt-dlp finished but no audio file was found.")
+                downloaded = matches[0]
+
+            return downloaded, title
+    finally:
+        if cookie_file and cookie_file.exists():
+            cookie_file.unlink()
 
 
 def transcribe_file(audio_path: Path, model: str) -> str:
