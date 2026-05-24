@@ -1,0 +1,4 @@
+flask==3.0.3
+openai==2.38.0
+slack_sdk==3.36.0
+yt-dlp==2026.3.17

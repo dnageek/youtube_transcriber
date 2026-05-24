@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: youtube-transcript-slack
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python slack_app.py
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+      - key: TRANSCRIBE_MODEL
+        value: gpt-4o-mini-transcribe
+      - key: CHUNK_SECONDS
+        value: "600"
+      - key: TRANSCRIPT_DIR
+        value: transcripts
