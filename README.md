@@ -185,6 +185,15 @@ base64 -w 0 youtube_cookies.txt
 
 The app decodes this env var at runtime and passes it to `yt-dlp` as `cookiefile`.
 
+Official `yt-dlp` docs for cookies:
+- FAQ: https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp
+- YouTube extractor notes: https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies
+
+Important notes:
+- Export cookies from a browser profile currently signed into YouTube.
+- Keep cookie file format as Netscape cookie format.
+- Treat cookies like credentials; do not commit or share them.
+
 ---
 
 ## 8) Render Free Tier Notes

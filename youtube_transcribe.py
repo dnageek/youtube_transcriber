@@ -21,8 +21,7 @@ def sanitize_filename(name: str) -> str:
 
 def download_audio(youtube_url: str, output_dir: Path) -> tuple[Path, str]:
     output_template = str(output_dir / "%(title)s.%(ext)s")
-    ydl_opts = {
-        "format": "bestaudio/best",
+    base_ydl_opts = {
         "outtmpl": output_template,
         "quiet": False,
         "noplaylist": True,
@@ -38,27 +37,48 @@ def download_audio(youtube_url: str, output_dir: Path) -> tuple[Path, str]:
 
         cookie_file = output_dir / "yt_cookies.txt"
         cookie_file.write_bytes(cookie_data)
-        ydl_opts["cookiefile"] = str(cookie_file)
+        base_ydl_opts["cookiefile"] = str(cookie_file)
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(youtube_url, download=True)
-            downloaded = Path(ydl.prepare_filename(info))
-            title = info.get("title") or "transcript"
+        format_candidates = [
+            "bestaudio/best",
+            "bestaudio*/best",
+            "best",
+        ]
+        last_exc: Exception | None = None
 
-            requested = info.get("requested_downloads") or []
-            if requested:
-                actual = requested[0].get("filepath")
-                if actual:
-                    downloaded = Path(actual)
+        for fmt in format_candidates:
+            ydl_opts = dict(base_ydl_opts)
+            ydl_opts["format"] = fmt
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(youtube_url, download=True)
+                    downloaded = Path(ydl.prepare_filename(info))
+                    title = info.get("title") or "transcript"
 
-            if not downloaded.exists():
-                matches = sorted(output_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
-                if not matches:
-                    raise FileNotFoundError("yt-dlp finished but no audio file was found.")
-                downloaded = matches[0]
+                    requested = info.get("requested_downloads") or []
+                    if requested:
+                        actual = requested[0].get("filepath")
+                        if actual:
+                            downloaded = Path(actual)
 
-            return downloaded, title
+                    if not downloaded.exists():
+                        matches = sorted(output_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
+                        if not matches:
+                            raise FileNotFoundError("yt-dlp finished but no audio file was found.")
+                        downloaded = matches[0]
+
+                    return downloaded, title
+
+            except yt_dlp.utils.DownloadError as exc:
+                last_exc = exc
+                if "Requested format is not available" in str(exc):
+                    continue
+                raise
+
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("yt-dlp failed to download with all fallback formats.")
     finally:
         if cookie_file and cookie_file.exists():
             cookie_file.unlink()
