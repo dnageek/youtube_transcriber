@@ -5,6 +5,7 @@ This project transcribes YouTube videos using OpenAI.
 It supports:
 - CLI usage: run directly from terminal
 - Slack usage: `/yttranscript <youtube-url>` from phone/desktop
+- Telegram usage: send YouTube URL to your bot from phone/desktop
 - Render deployment for always-available webhook hosting
 
 ---
@@ -24,6 +25,7 @@ It supports:
 
 - `youtube_transcribe.py`: core transcription pipeline + CLI
 - `slack_app.py`: Slack slash-command web server
+- `telegram_bot.py`: Telegram long-polling bot for local use
 - `requirements.txt`: Python dependencies
 - `render.yaml`: Render service blueprint
 
@@ -106,7 +108,50 @@ Endpoints:
 
 ---
 
-## 6) Slack App Setup (Required)
+## 6) Local Setup (Telegram bot, no public IP needed)
+
+Telegram mode uses long polling, so your computer only makes outbound HTTPS calls to Telegram.
+
+### Create bot token
+
+1. In Telegram, open `@BotFather`.
+2. Run `/newbot` and follow prompts.
+3. Copy bot token and set:
+
+```bash
+export TELEGRAM_BOT_TOKEN="123456:ABCDEF..."
+```
+
+### Required env vars
+
+```bash
+export OPENAI_API_KEY="your_openai_api_key"
+export TELEGRAM_BOT_TOKEN="123456:ABCDEF..."
+export TRANSCRIBE_MODEL="gpt-4o-mini-transcribe"
+export CHUNK_SECONDS="600"
+export TRANSCRIPT_DIR="transcripts"
+```
+
+Optional access control (comma-separated Telegram numeric user IDs):
+
+```bash
+export TELEGRAM_ALLOWED_USER_IDS="123456789,987654321"
+```
+
+Run bot:
+
+```bash
+python telegram_bot.py
+```
+
+Usage in Telegram:
+- Send `/start`
+- Send a YouTube URL
+- Bot replies with preview + transcript `.txt` file
+
+---
+
+## 7) Slack App Setup (Required)
 
 1. Go to `https://api.slack.com/apps` and create a new app.
 2. Open `OAuth & Permissions`.
@@ -134,7 +179,7 @@ Command usage in Slack:
 
 ---
 
-## 7) Deploy to Render
+## 8) Deploy to Render
 
 You have two deployment choices.
 
@@ -196,7 +241,7 @@ Important notes:
 
 ---
 
-## 8) Render Free Tier Notes
+## 9) Render Free Tier Notes
 
 - Free services can sleep after inactivity.
 - First request after sleep may be slower (cold start).
@@ -204,7 +249,7 @@ Important notes:
 
 ---
 
-## 9) End-to-End Test Checklist
+## 10) End-to-End Test Checklist
 
 1. `https://<render-url>/health` returns `ok`
 2. Slash command Request URL is correct
@@ -218,7 +263,7 @@ Important notes:
 
 ---
 
-## 10) Troubleshooting
+## 11) Troubleshooting
 
 ### `invalid signature`
 - `SLACK_SIGNING_SECRET` is wrong or outdated.
@@ -255,7 +300,7 @@ python youtube_transcribe.py "<url>" --chunk-seconds 300
 
 ---
 
-## 11) Security Notes
+## 12) Security Notes
 
 - Never commit API keys or tokens.
 - Set secrets only in env vars (Render Environment settings).
@@ -263,7 +308,7 @@ python youtube_transcribe.py "<url>" --chunk-seconds 300
 
 ---
 
-## 12) Useful Commands
+## 13) Useful Commands
 
 Local syntax check:
 
@@ -271,10 +316,22 @@ Local syntax check:
 python -m py_compile youtube_transcribe.py slack_app.py
 ```
 
+Telegram bot syntax check:
+
+```bash
+python -m py_compile telegram_bot.py
+```
+
 Run server locally:
 
 ```bash
 python slack_app.py
+```
+
+Run Telegram bot locally:
+
+```bash
+python telegram_bot.py
 ```
 
 Run CLI locally:

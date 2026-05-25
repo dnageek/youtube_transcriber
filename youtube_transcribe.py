@@ -25,10 +25,6 @@ def download_audio(youtube_url: str, output_dir: Path) -> tuple[Path, str]:
         "outtmpl": output_template,
         "quiet": False,
         "noplaylist": True,
-        "extractor_args": {
-            # Server environments can miss formats with default web client.
-            "youtube": {"player_client": ["android"]},
-        },
     }
 
     cookies_b64 = os.getenv("YTDLP_COOKIES_B64", "").strip()
@@ -49,36 +45,53 @@ def download_audio(youtube_url: str, output_dir: Path) -> tuple[Path, str]:
             "bestaudio*/best",
             "best",
         ]
+        if cookies_b64:
+            # Android client is incompatible with cookies. Prefer cookie-compatible clients.
+            client_profiles = [
+                {"youtube": {"player_client": ["web"]}},
+                {"youtube": {"player_client": ["mweb"]}},
+                {"youtube": {"player_client": ["tv"]}},
+                None,
+            ]
+        else:
+            client_profiles = [
+                {"youtube": {"player_client": ["android"]}},
+                {"youtube": {"player_client": ["web"]}},
+                None,
+            ]
         last_exc: Exception | None = None
 
-        for fmt in format_candidates:
-            ydl_opts = dict(base_ydl_opts)
-            ydl_opts["format"] = fmt
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(youtube_url, download=True)
-                    downloaded = Path(ydl.prepare_filename(info))
-                    title = info.get("title") or "transcript"
+        for client_args in client_profiles:
+            for fmt in format_candidates:
+                ydl_opts = dict(base_ydl_opts)
+                ydl_opts["format"] = fmt
+                if client_args:
+                    ydl_opts["extractor_args"] = client_args
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(youtube_url, download=True)
+                        downloaded = Path(ydl.prepare_filename(info))
+                        title = info.get("title") or "transcript"
 
-                    requested = info.get("requested_downloads") or []
-                    if requested:
-                        actual = requested[0].get("filepath")
-                        if actual:
-                            downloaded = Path(actual)
+                        requested = info.get("requested_downloads") or []
+                        if requested:
+                            actual = requested[0].get("filepath")
+                            if actual:
+                                downloaded = Path(actual)
 
-                    if not downloaded.exists():
-                        matches = sorted(output_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
-                        if not matches:
-                            raise FileNotFoundError("yt-dlp finished but no audio file was found.")
-                        downloaded = matches[0]
+                        if not downloaded.exists():
+                            matches = sorted(output_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
+                            if not matches:
+                                raise FileNotFoundError("yt-dlp finished but no audio file was found.")
+                            downloaded = matches[0]
 
-                    return downloaded, title
+                        return downloaded, title
 
-            except yt_dlp.utils.DownloadError as exc:
-                last_exc = exc
-                if "Requested format is not available" in str(exc):
-                    continue
-                raise
+                except yt_dlp.utils.DownloadError as exc:
+                    last_exc = exc
+                    if "Requested format is not available" in str(exc):
+                        continue
+                    raise
 
         if last_exc:
             raise last_exc
