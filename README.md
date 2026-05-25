@@ -146,6 +146,33 @@ export DROPBOX_ACCESS_TOKEN="sl.xxxxx"
 export DROPBOX_FOLDER="/youtube_transcripts"
 ```
 
+### Dropbox setup details
+
+1. Open Dropbox App Console:
+   `https://www.dropbox.com/developers/apps`
+2. Click `Create app`.
+3. Choose:
+- API: `Scoped access`
+- Access type: `App folder` (recommended) or `Full Dropbox`
+4. Give your app a name and create it.
+5. In app settings, open `Permissions` and enable at least:
+- `files.content.write`
+- `files.content.read` (optional but useful for checks)
+6. Click `Submit`/save permission changes.
+7. Open `Settings` tab and under OAuth 2 click `Generate access token`.
+8. Copy token and set it locally:
+
+```bash
+export DROPBOX_ACCESS_TOKEN="sl.xxxxx"
+export DROPBOX_FOLDER="/youtube_transcripts"
+```
+
+Notes:
+- If using `App folder`, Dropbox will limit writes to that app-specific folder.
+- `DROPBOX_FOLDER` should start with `/`, example `/youtube_transcripts`.
+- The bot uses overwrite mode when a filename already exists.
+- Keep tokens secret and never commit them to git.
+
 Run bot:
 
 ```bash
@@ -158,6 +185,14 @@ Usage in Telegram:
 - Bot replies only with save location + usage summary
 - If Dropbox env vars are set, bot uploads transcript to Dropbox and reports Dropbox path
 - Usage summary includes processed audio minutes and optional estimated USD cost
+
+Quick Dropbox verification:
+
+1. Start bot with `DROPBOX_ACCESS_TOKEN` and `DROPBOX_FOLDER` set.
+2. Send a short YouTube URL to bot.
+3. Bot should reply with:
+- `Saved to Dropbox: /youtube_transcripts/<filename>.txt`
+4. Confirm file appears in Dropbox web/app.
 
 ---
 
@@ -294,6 +329,12 @@ Important notes:
 ### OpenAI errors
 - Confirm `OPENAI_API_KEY` is valid.
 - Check API billing/usage limits.
+
+### Dropbox upload errors
+- `AuthError`/`invalid_access_token`: token is wrong, expired, or copied with extra spaces.
+- `insufficient_scope`: missing app permissions (enable required scopes, then regenerate/retest token).
+- `path/not_found`: parent folder path is invalid.
+- `cannot_write`: app has limited folder access and path is outside allowed area.
 
 ### Transcript seems partial
 - Reduce chunk size:
