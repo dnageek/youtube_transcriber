@@ -6,13 +6,14 @@ import dropbox
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
-from youtube_transcribe import transcribe_youtube_url
+from youtube_transcribe import transcribe_youtube_url_with_stats
 
 MODEL_NAME = os.getenv("TRANSCRIBE_MODEL", "gpt-4o-mini-transcribe")
 CHUNK_SECONDS = int(os.getenv("CHUNK_SECONDS", "600"))
 TRANSCRIPT_DIR = Path(os.getenv("TRANSCRIPT_DIR", "transcripts"))
 DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN", "").strip()
 DROPBOX_FOLDER = os.getenv("DROPBOX_FOLDER", "/youtube_transcripts").strip() or "/youtube_transcripts"
+TRANSCRIBE_COST_PER_MINUTE_USD = os.getenv("TRANSCRIBE_COST_PER_MINUTE_USD", "").strip()
 ALLOWED_USER_IDS = {
     int(v.strip()) for v in os.getenv("TELEGRAM_ALLOWED_USER_IDS", "").split(",") if v.strip().isdigit()
 }
@@ -64,27 +65,32 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text("Queued. Downloading and transcribing now. This may take a few minutes.")
 
     try:
-        transcript_path = transcribe_youtube_url(
+        cost_per_minute = None
+        if TRANSCRIBE_COST_PER_MINUTE_USD:
+            cost_per_minute = float(TRANSCRIBE_COST_PER_MINUTE_USD)
+
+        result = transcribe_youtube_url_with_stats(
             url=text,
             model=MODEL_NAME,
             out_dir=TRANSCRIPT_DIR,
             chunk_seconds=CHUNK_SECONDS,
+            cost_per_minute_usd=cost_per_minute,
         )
+        transcript_path = result.transcript_path
 
-        transcript_text = transcript_path.read_text(encoding="utf-8")
-        preview = transcript_text[:1200] + ("..." if len(transcript_text) > 1200 else "")
-        await update.message.reply_text(f"Preview:\\n{preview}")
-
-        with transcript_path.open("rb") as fp:
-            await update.message.reply_document(
-                document=fp,
-                filename=transcript_path.name,
-                caption="Transcript complete.",
-            )
-
+        minutes = result.audio_seconds / 60.0
+        usage_line = f"Usage: {minutes:.2f} audio minutes processed."
+        if result.estimated_cost_usd is not None:
+            usage_line += f" Estimated cost: ${result.estimated_cost_usd:.4f}."
         dropbox_path = upload_to_dropbox(transcript_path)
         if dropbox_path:
-            await update.message.reply_text(f"Uploaded to Dropbox: {dropbox_path}")
+            await update.message.reply_text(
+                f"Saved to Dropbox: {dropbox_path}\n{usage_line}"
+            )
+        else:
+            await update.message.reply_text(
+                f"Saved locally: {transcript_path}\n{usage_line}"
+            )
     except Exception as exc:
         await update.message.reply_text(f"Transcription failed: {exc}")
 

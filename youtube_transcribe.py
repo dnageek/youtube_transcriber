@@ -6,10 +6,18 @@ import re
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import yt_dlp
 from openai import OpenAI
+
+
+@dataclass
+class TranscriptionResult:
+    transcript_path: Path
+    audio_seconds: float
+    estimated_cost_usd: float | None
 
 
 def sanitize_filename(name: str) -> str:
@@ -162,6 +170,22 @@ def transcribe_youtube_url(
     out_dir: str | Path = ".",
     chunk_seconds: int = 600,
 ) -> Path:
+    result = transcribe_youtube_url_with_stats(
+        url=url,
+        model=model,
+        out_dir=out_dir,
+        chunk_seconds=chunk_seconds,
+    )
+    return result.transcript_path
+
+
+def transcribe_youtube_url_with_stats(
+    url: str,
+    model: str = "gpt-4o-mini-transcribe",
+    out_dir: str | Path = ".",
+    chunk_seconds: int = 600,
+    cost_per_minute_usd: float | None = None,
+) -> TranscriptionResult:
     output_dir = Path(out_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -188,7 +212,14 @@ def transcribe_youtube_url(
     transcript_filename = f"{sanitize_filename(title)}.txt"
     transcript_path = output_dir / transcript_filename
     transcript_path.write_text(transcript, encoding="utf-8")
-    return transcript_path
+    estimated_cost = None
+    if cost_per_minute_usd is not None:
+        estimated_cost = max(0.0, duration / 60.0) * cost_per_minute_usd
+    return TranscriptionResult(
+        transcript_path=transcript_path,
+        audio_seconds=duration,
+        estimated_cost_usd=estimated_cost,
+    )
 
 
 def main() -> int:

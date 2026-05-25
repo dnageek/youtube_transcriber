@@ -130,6 +130,7 @@ export TELEGRAM_BOT_TOKEN="123456:ABCDEF..."
 export TRANSCRIBE_MODEL="gpt-4o-mini-transcribe"
 export CHUNK_SECONDS="600"
 export TRANSCRIPT_DIR="transcripts"
+export TRANSCRIBE_COST_PER_MINUTE_USD="0.0000"
 ```
 
 Optional access control (comma-separated Telegram numeric user IDs):
@@ -154,8 +155,9 @@ python telegram_bot.py
 Usage in Telegram:
 - Send `/start`
 - Send a YouTube URL
-- Bot replies with preview + transcript `.txt` file
-- If Dropbox env vars are set, bot also uploads transcript to Dropbox
+- Bot replies only with save location + usage summary
+- If Dropbox env vars are set, bot uploads transcript to Dropbox and reports Dropbox path
+- Usage summary includes processed audio minutes and optional estimated USD cost
 
 ---
 
