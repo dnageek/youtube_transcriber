@@ -25,6 +25,10 @@ def download_audio(youtube_url: str, output_dir: Path) -> tuple[Path, str]:
         "outtmpl": output_template,
         "quiet": False,
         "noplaylist": True,
+        "extractor_args": {
+            # Server environments can miss formats with default web client.
+            "youtube": {"player_client": ["android"]},
+        },
     }
 
     cookies_b64 = os.getenv("YTDLP_COOKIES_B64", "").strip()
