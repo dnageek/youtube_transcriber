@@ -138,6 +138,13 @@ Optional access control (comma-separated Telegram numeric user IDs):
 export TELEGRAM_ALLOWED_USER_IDS="123456789,987654321"
 ```
 
+Optional Dropbox upload:
+
+```bash
+export DROPBOX_ACCESS_TOKEN="sl.xxxxx"
+export DROPBOX_FOLDER="/youtube_transcripts"
+```
+
 Run bot:
 
 ```bash
@@ -148,6 +155,7 @@ Usage in Telegram:
 - Send `/start`
 - Send a YouTube URL
 - Bot replies with preview + transcript `.txt` file
+- If Dropbox env vars are set, bot also uploads transcript to Dropbox
 
 ---
 
